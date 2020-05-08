@@ -18,7 +18,12 @@ const cartButton                = document.querySelector("#cart-button"),
       cardsMenu                 = document.querySelector(".cards-menu"),
       headingRestarauntPage     = document.querySelector(".heading-restaraunt-page"),
       inputSearch               = document.querySelector(".input-search"),
-      search                    = document.querySelector(".search");
+      search                    = document.querySelector(".search"),
+      modalBody                 = document.querySelector(".modal-body"),
+      modalPrice                = document.querySelector(".modal-pricetag"),
+      clearCart                 = document.querySelector(".clear-cart"),
+      
+      cart                      = [];
 
 let login                       = localStorage.getItem('gloDelivere');
 
@@ -61,13 +66,16 @@ function authorized() {
   // деавторизация пользователей
   function logOut () {
     login = null;
+    // очистка localStorage
+    localStorage.clear();
     // очиска aplication->local storage
-    localStorage.removeItem('gloDelivere');
+    //localStorage.removeItem('gloDelivere');
     // сброс стилей с элементов
     buttonAuth.style.display = '';
     userName.style.display = '';
     search.style.display = '';
     buttonOut.style.display = '';
+    cartButton.style.display = '';
     containerPromo.classList.remove('hide');
     restaurants.classList.remove('hide');
     menu.classList.add('hide');
@@ -81,7 +89,8 @@ function authorized() {
   search.style.display = 'block';
   buttonAuth.style.display = 'none';
   userName.style.display = 'inline';
-  buttonOut.style.display = 'block';
+  buttonOut.style.display = 'flex';
+  cartButton.style.display = 'flex';
   // обработка события клик на кнопку выйти
   buttonOut.addEventListener("click", logOut);
 }
@@ -186,11 +195,11 @@ function createCardGood({ id, name, description, price, image }) {
         </div>
       </div>
       <div class="card-buttons">
-        <button class="button button-primary button-add-cart">
+        <button class="button button-primary button-add-cart" id="${id}">
           <span class="button-card-text">В корзину</span>
           <span class="button-cart-svg"></span>
         </button>
-        <strong class="card-price-bold">${price} ₽</strong>
+        <strong class="card-price-bold card-price">${price} ₽</strong>
       </div>
     </div>
   `);
@@ -238,6 +247,95 @@ function openGoods(event) {
   }
 }
 
+// добавление элементов в корзину
+function addToCart (event) {
+  const target = event.target;
+  // подъем в кнопку при клике по элементу кнопки
+  const buttonAddToCart = target.closest('.button-add-cart');
+  if (buttonAddToCart) {
+    // подъем наверх при событии клике по кнопке "корзина"
+    const card = target.closest('.card');
+    // получение данных карточки товара
+    const title = card.querySelector(".card-title-reg").textContent;
+    const cost = card.querySelector(".card-price").textContent;
+    // получение идентиф товара для уникальности записей в корщине и подсчета товаров
+    const id = buttonAddToCart.id;
+    // проверка уникальности элемента в массиве
+    const food = cart.find(function(item){
+      return item.id === id;
+    });
+
+    if (food) {
+      food.count += 1;
+    } else {
+      cart.push({ 
+        id,
+        title,
+        cost,
+        count: 1
+       });
+    }
+  };
+}
+
+// формирование корзины
+function renderCart () {
+  // очистка корзины перед открытием
+  modalBody.textContent = '';
+  cart.forEach(function({ id, title, cost, count }){
+    const itemCart = `
+      <div class="food-row">
+        <span class="food-name">${title}</span>
+        <strong class="food-price">${cost}</strong>
+        <div class="food-counter">
+          <button class="counter-button counter-minus" data-id="${id}">-</button>
+          <span class="counter">${count}</span>
+          <button class="counter-button counter-plus" data-id="${id}">+</button>
+        </div>
+      </div>
+    `;
+    modalBody.insertAdjacentHTML("beforeend", itemCart);
+  });
+  // расчет стоимости товаров в корзине
+  const totalPrice = cart.reduce(function(result, item){ 
+    return result + (parseFloat(item.cost) * item.count);
+  }, 0);
+  // ввывод стоимсти товаров в окно стоимости корзины
+  modalPrice.textContent = totalPrice + ' ₽';
+  // проверка заполнения корзины
+  if (cart.length === 0) {
+    const info = `
+    <div class="food-row">
+      <span class="food-name">Корзина пуста!</span>
+    </div>
+    `;
+    modalBody.insertAdjacentHTML("beforeend", info);
+  }
+  // сохранение корзины в в localStorage
+  let gloCart = cart;
+  localStorage.gloCart = JSON.stringify(gloCart);
+  gloCart = localStorage.gloCart ? JSON.parse(localStorage.gloCart) : [];
+}
+
+function changeCount (event) {
+  const target = event.target;
+  if (target.classList.contains('counter-button')) {
+    const food = cart.find(function(item) {
+      return item.id === target.dataset.id;
+    });
+    if (target.classList.contains('counter-minus')) {
+      food.count--;
+      if (food.count === 0) {
+        cart.splice(cart.indexOf(food), 1);
+      }
+    };
+    if (target.classList.contains('counter-plus')) {
+      food.count++;
+    };
+    renderCart();
+  }
+}
+
 // скрипт
 function init () {
   // получение данные в формате json->array
@@ -246,13 +344,25 @@ function init () {
     data.forEach(createCardsRestaurants);
   });
   // это корзина
-  cartButton.addEventListener("click", toggleModal);
+  cartButton.addEventListener("click", function(){
+    renderCart();
+    toggleModal();
+  });
+  // обработка нажатия кнопки "отмена" в корзине
+  clearCart.addEventListener("click", function(){
+    cart.length = 0;
+    renderCart();
+  });
   // крестик модального окна
   close.addEventListener("click", toggleModal);
   // проверка входа пользователя
   checkAuth();
   // обработка клика на карточку или эелемнт карточки ресторана
   cardsRestaurants.addEventListener("click", openGoods);
+  // обработка клика на карточку товара
+  cardsMenu.addEventListener("click", addToCart);
+  // обработка нажатий на кнопки +/- в корзине
+  modalBody.addEventListener("click", changeCount);
   // обработка ввода в строку поиска, получение данных
   inputSearch.addEventListener('keydown', function(event){
     // проверка нажатия клавиши enter
