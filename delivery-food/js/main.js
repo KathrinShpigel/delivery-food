@@ -22,11 +22,25 @@ const cartButton                = document.querySelector("#cart-button"),
       modalBody                 = document.querySelector(".modal-body"),
       modalPrice                = document.querySelector(".modal-pricetag"),
       clearCart                 = document.querySelector(".clear-cart"),
-      
+
       cart                      = [];
 
 let login                       = localStorage.getItem('gloDelivere');
 
+// проверка есть ли данные за таким логином
+const loadCart = () => {
+  if (localStorage.getItem(login)) {
+    JSON.parse(localStorage.getItem(login)).forEach(function(item){
+      // если данные есть они добавляются в локал стор пользователя
+      cart.push(item);
+    });
+  }
+};
+
+// сохранение данных в локал стор для пользователя
+const saveCart = () => {
+  localStorage.setItem(login, JSON.stringify(cart));
+};
 
 // получение по url данных в json формате и преобразование его в массив объектов 
 const getData = async function(url) {
@@ -38,7 +52,7 @@ const getData = async function(url) {
 };
 
 // валидатор ввода логина
-const valid = function(str) {
+const valid = (str) => {
   const nameValid = /^[a-zA-Z][a-zA-Z0-9-_\.]{1,20}$/;
   return nameValid.test(str);
 };
@@ -66,10 +80,9 @@ function authorized() {
   // деавторизация пользователей
   function logOut () {
     login = null;
-    // очистка localStorage
-    localStorage.clear();
+    cart.length = 0;
     // очиска aplication->local storage
-    //localStorage.removeItem('gloDelivere');
+    localStorage.removeItem('gloDelivere');
     // сброс стилей с элементов
     buttonAuth.style.display = '';
     userName.style.display = '';
@@ -93,6 +106,7 @@ function authorized() {
   cartButton.style.display = 'flex';
   // обработка события клик на кнопку выйти
   buttonOut.addEventListener("click", logOut);
+  loadCart();
 }
 
 // действия для неавторизованного пользователя
@@ -132,13 +146,7 @@ function notathorized() {
   logInForm.addEventListener("submit", logIn);
 }
 
-function checkAuth() {
-  if (login) {
-    authorized();
-  } else {
-    notathorized();
-  }
-}
+const checkAuth = () => login ? authorized() : notathorized();
 
 // создание карточки ресторана
 function createCardsRestaurants({ name, time_of_delivery: timeOfDelivery,
@@ -276,6 +284,7 @@ function addToCart (event) {
        });
     }
   };
+  saveCart();
 }
 
 // формирование корзины
@@ -311,10 +320,7 @@ function renderCart () {
     `;
     modalBody.insertAdjacentHTML("beforeend", info);
   }
-  // сохранение корзины в в localStorage
-  let gloCart = cart;
-  localStorage.gloCart = JSON.stringify(gloCart);
-  gloCart = localStorage.gloCart ? JSON.parse(localStorage.gloCart) : [];
+  saveCart();
 }
 
 function changeCount (event) {
@@ -334,6 +340,7 @@ function changeCount (event) {
     };
     renderCart();
   }
+  saveCart();
 }
 
 // скрипт
